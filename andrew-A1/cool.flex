@@ -113,6 +113,12 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 [A-Z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (TYPEID); }
 [a-z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (OBJECTID); }
 
+ /* whitespace */
+[\s]+                 { /* ignore whitespace */ }
+
+ /* These are any other single-character lexemes that are valid. They return their ASCII code */
+[\.;:\+/\*\-\(\)@~<=\{\},\[\]]  { return (yytext); }
+
  /* anything else is an error */
  /*.+             { cool_yylval.error_msg = yytext; return (ERROR); }
 */

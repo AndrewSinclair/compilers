@@ -53,13 +53,23 @@ DARROW          =>
 ASSIGN          <-
 LE              <=
 NEWLINE         \n
+START_COMMENT   \(\*
+END_COMMENT     \*\)
+SINGLE_COMMENT  --.*\n
 
+%START          COMMENT
 
 %%
 
  /*
   *  Nested comments
   */
+{START_COMMENT}         { BEGIN(COMMENT); }
+<COMMENT>[^\*\)\n]+  { /* do nothing */ }
+<COMMENT>\* { }
+<COMMENT>\) { }
+{END_COMMENT}           { BEGIN (0); }
+{SINGLE_COMMENT}        { curr_lineno++; }
 
 
  /*
@@ -106,7 +116,6 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
  /* numbers */
 [0-9]+           { cool_yylval.symbol = inttable.add_string(yytext); return (INT_CONST); }
 
-{NEWLINE}        { curr_lineno++; }
 
 
  /* Symbol identifiers */
@@ -114,13 +123,14 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 [a-z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (OBJECTID); }
 
  /* whitespace */
-[\s]+                 { /* ignore whitespace */ }
+[\f\r\t\v ]+          { /* ignore whitespace */ }
+{NEWLINE}             { curr_lineno++; }
 
  /* These are any other single-character lexemes that are valid. They return their ASCII code */
-[\.;:\+/\*\-\(\)@~<=\{\},\[\]]  { return (yytext); }
+<INITIAL>[\.;:\+/\*\-\(\)@~<=\{\},\[\]]  { return ((int)yytext[0]); }
 
  /* anything else is an error */
- /*.+             { cool_yylval.error_msg = yytext; return (ERROR); }
-*/
+ /*[^\.;:\+/\*\-\(\)@~<=\{\},\[\]a-zA-Z0-9_>\s]+             { cool_yylval.error_msg = "Invalid character"; return (ERROR); }*/
+
 
 %%

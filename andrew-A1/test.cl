@@ -1,11 +1,14 @@
 (* models one-dimensional cellular automaton on a circle of finite radius
    arrays are faked as Strings,
+   *
+   (test)
    X's respresent live cells, dots represent dead cells,
    no error checking is done *)
+--Also a comment
 class CellularAutomaton inherits IO {
     population_map : String;
 
-    (* => *)
+    (* classes *)
    
     init(map : String) : SELF_TYPE {
         {
@@ -55,7 +58,7 @@ class CellularAutomaton inherits IO {
         then
             "X"
         else
-            '.'
+            "."
         fi
     };
    
@@ -85,7 +88,7 @@ class Main {
             cells <- (new CellularAutomaton).init("         X         ");
             cells.print();
             (let countdown : Int <- 20 in
-                while countdown > 0 loop
+                while 0 < countdown loop
                     {
                         cells.evolve();
                         cells.print();

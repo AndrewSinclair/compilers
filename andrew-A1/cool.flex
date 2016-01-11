@@ -57,7 +57,7 @@ START_COMMENT   \(\*
 END_COMMENT     \*\)
 SINGLE_COMMENT  --.*\n
 
-%START          COMMENT
+%START          COMMENT STRING
 
 %%
 
@@ -65,9 +65,9 @@ SINGLE_COMMENT  --.*\n
   *  Nested comments
   */
 {START_COMMENT}         { BEGIN(COMMENT); }
-<COMMENT>[^\*\)\n]+  { /* do nothing */ }
-<COMMENT>\* { }
-<COMMENT>\) { }
+<COMMENT>[^\*\)\n]+     { /* do nothing */ }
+<COMMENT>\*             { }
+<COMMENT>\)             { }
 {END_COMMENT}           { BEGIN (0); }
 {SINGLE_COMMENT}        { curr_lineno++; }
 
@@ -112,6 +112,15 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
   *  \n \t \b \f, the result is c.
   *
   */
+<INITIAL>\"                { BEGIN(STRING); string_buf_ptr = string_buf;}
+<STRING>[^\\\"]+           { memcpy(string_buf_ptr, yytext, yyleng); string_buf_ptr += yyleng; }
+<STRING>\\n                { memcpy(string_buf_ptr++, "\n", 1); }
+<STRING>\\t                { memcpy(string_buf_ptr++, "\t", 1); }
+<STRING>\\b                { memcpy(string_buf_ptr++, "\b", 1); }
+<STRING>\\f                { memcpy(string_buf_ptr++, "\f", 1); }
+<STRING>\\.                { memcpy(string_buf_ptr++, (const void*)(*yytext+1), 1); }
+
+<STRING>\"                 { BEGIN (0); cool_yylval.symbol = stringtable.add_string(string_buf); return (STR_CONST); }
 
  /* numbers */
 [0-9]+           { cool_yylval.symbol = inttable.add_string(yytext); return (INT_CONST); }
@@ -127,10 +136,10 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 {NEWLINE}             { curr_lineno++; }
 
  /* These are any other single-character lexemes that are valid. They return their ASCII code */
-<INITIAL>[\.;:\+/\*\-\(\)@~<=\{\},\[\]]  { return ((int)yytext[0]); }
+<INITIAL>[\.;:\+/\*\-\(\)@~<=\{\},]  { return ((char)yytext[0]); }
 
  /* anything else is an error */
- /*[^\.;:\+/\*\-\(\)@~<=\{\},\[\]a-zA-Z0-9_>\s]+             { cool_yylval.error_msg = "Invalid character"; return (ERROR); }*/
+<INITIAL>[^\.;:\+\/\*\-\(\)@~<=\{\},a-zA-Z0-9_>\s]             { cool_yylval.error_msg = "Invalid character"; return (ERROR); }
 
 
 %%

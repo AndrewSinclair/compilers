@@ -82,10 +82,14 @@ class CellularAutomaton inherits IO {
 
 class Main {
     cells : CellularAutomaton;
+    andrew : String;
    
     main() : SELF_TYPE {
         {
             cells <- (new CellularAutomaton).init("         X         ");
+
+            andrew <- "there is no issue \0 in this string";
+
             cells.print();
             (let countdown : Int <- 20 in
                 while 0 < countdown loop

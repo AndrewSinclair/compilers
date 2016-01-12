@@ -65,10 +65,12 @@ SINGLE_COMMENT  --.*\n
   *  Nested comments
   */
 {START_COMMENT}         { BEGIN(COMMENT); }
-<COMMENT>[^\*\)\n]+     { /* do nothing */ }
+<COMMENT>[^\*\)\n<<EOF>>]+     { /* do nothing */ }
 <COMMENT>\*             { }
 <COMMENT>\)             { }
-{END_COMMENT}           { BEGIN (0); }
+<COMMENT><<EOF>>        { cool_yylval.error_msg = "EOF in comment"; BEGIN(0); return (ERROR); }
+<INITIAL>{END_COMMENT}  { cool_yylval.error_msg = "Unmatched *)"; return (ERROR); }
+<COMMENT>{END_COMMENT}           { BEGIN (0); }
 {SINGLE_COMMENT}        { curr_lineno++; }
 
 
@@ -113,12 +115,16 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
   *
   */
 <INITIAL>\"                { BEGIN(STRING); string_buf_ptr = string_buf;}
-<STRING>[^\\\"]+           { memcpy(string_buf_ptr, yytext, yyleng); string_buf_ptr += yyleng; }
+<STRING>[^\\\"\n\0<<EOF>>]+       { memcpy(string_buf_ptr, yytext, yyleng); string_buf_ptr += yyleng; }
+<STRING>{NEWLINE}          { cool_yylval.error_msg = "Unterminated string constant"; BEGIN (0); curr_lineno++; return (ERROR);}
+<STRING>\0                 { cool_yylval.error_msg = "String contains null character"; return (ERROR); }
+<STRING><<EOF>>            { cool_yylval.error_msg = "String contains EOF character"; BEGIN(0); return (ERROR); }
+<STRING>\\{NEWLINE}        { curr_lineno++; }
 <STRING>\\n                { memcpy(string_buf_ptr++, "\n", 1); }
 <STRING>\\t                { memcpy(string_buf_ptr++, "\t", 1); }
 <STRING>\\b                { memcpy(string_buf_ptr++, "\b", 1); }
 <STRING>\\f                { memcpy(string_buf_ptr++, "\f", 1); }
-<STRING>\\.                { memcpy(string_buf_ptr++, (const void*)(*yytext+1), 1); }
+<STRING>\\.                { memcpy(string_buf_ptr++, (const void*)(yytext+1), 1); }
 
 <STRING>\"                 { BEGIN (0); cool_yylval.symbol = stringtable.add_string(string_buf); return (STR_CONST); }
 
@@ -139,7 +145,7 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 <INITIAL>[\.;:\+/\*\-\(\)@~<=\{\},]  { return ((char)yytext[0]); }
 
  /* anything else is an error */
-<INITIAL>[^\.;:\+\/\*\-\(\)@~<=\{\},a-zA-Z0-9_>\s]             { cool_yylval.error_msg = "Invalid character"; return (ERROR); }
+<INITIAL>[^\.;:\+\/\*\-\(\)@~<=\{\},a-zA-Z0-9_>\s]             { cool_yylval.error_msg = yytext; return (ERROR); }
 
 
 %%

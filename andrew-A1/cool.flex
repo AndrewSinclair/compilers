@@ -55,9 +55,9 @@ LE              <=
 NEWLINE         \n
 START_COMMENT   \(\*
 END_COMMENT     \*\)
-SINGLE_COMMENT  --.*\n
+LINE_COMMENT  --.*
 
-%START          COMMENT STRING
+%START          COMMENT STRING SINGLE_COMMENT
 
 %%
 
@@ -70,8 +70,11 @@ SINGLE_COMMENT  --.*\n
 <COMMENT>\)             { }
 <COMMENT><<EOF>>        { cool_yylval.error_msg = "EOF in comment"; BEGIN(0); return (ERROR); }
 <INITIAL>{END_COMMENT}  { cool_yylval.error_msg = "Unmatched *)"; return (ERROR); }
-<COMMENT>{END_COMMENT}           { BEGIN (0); }
-{SINGLE_COMMENT}        { curr_lineno++; }
+<COMMENT>{END_COMMENT}  { BEGIN (0); }
+{LINE_COMMENT}          { BEGIN (SINGLE_COMMENT); }
+<SINGLE_COMMENT>\n      { curr_lineno++; BEGIN (0); }
+<SINGLE_COMMENT><<EOF>> { BEGIN (0); }
+
 
 
  /*
@@ -120,13 +123,13 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 <STRING>\0                 { cool_yylval.error_msg = "String contains null character"; return (ERROR); }
 <STRING><<EOF>>            { cool_yylval.error_msg = "String contains EOF character"; BEGIN(0); return (ERROR); }
 <STRING>\\{NEWLINE}        { curr_lineno++; }
-<STRING>\\n                { memcpy(string_buf_ptr++, "\n", 1); }
-<STRING>\\t                { memcpy(string_buf_ptr++, "\t", 1); }
-<STRING>\\b                { memcpy(string_buf_ptr++, "\b", 1); }
-<STRING>\\f                { memcpy(string_buf_ptr++, "\f", 1); }
+<STRING>\\n                { memcpy(string_buf_ptr++, "\n\0", 2); }
+<STRING>\\t                { memcpy(string_buf_ptr++, "\t\0", 2); }
+<STRING>\\b                { memcpy(string_buf_ptr++, "\b\0", 2); }
+<STRING>\\f                { memcpy(string_buf_ptr++, "\f\0", 2); }
 <STRING>\\.                { memcpy(string_buf_ptr++, (const void*)(yytext+1), 1); }
 
-<STRING>\"                 { BEGIN (0); cool_yylval.symbol = stringtable.add_string(string_buf); return (STR_CONST); }
+<STRING>\"                 { BEGIN (0);  *string_buf_ptr = 0; cool_yylval.symbol = stringtable.add_string(string_buf); return (STR_CONST); }
 
  /* numbers */
 [0-9]+           { cool_yylval.symbol = inttable.add_string(yytext); return (INT_CONST); }
@@ -146,6 +149,7 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 
  /* anything else is an error */
 <INITIAL>[^\.;:\+\/\*\-\(\)@~<=\{\},a-zA-Z0-9_>\s]             { cool_yylval.error_msg = yytext; return (ERROR); }
+<INITIAL>_  { cool_yylval.error_msg = "_"; return (ERROR); }
 
 
 %%

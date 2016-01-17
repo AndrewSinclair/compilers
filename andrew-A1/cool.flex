@@ -42,6 +42,7 @@ extern YYSTYPE cool_yylval;
 /*
  *  Add Your own definitions here
  */
+ int num_comments = 0;
 
 %}
 
@@ -55,7 +56,7 @@ LE              <=
 NEWLINE         \n
 START_COMMENT   \(\*
 END_COMMENT     \*\)
-LINE_COMMENT  --.*
+LINE_COMMENT    --.*
 
 %START          COMMENT STRING SINGLE_COMMENT
 
@@ -64,16 +65,18 @@ LINE_COMMENT  --.*
  /*
   *  Nested comments
   */
-{START_COMMENT}         { BEGIN(COMMENT); }
-<COMMENT>[^\*\)\n<<EOF>>]+     { /* do nothing */ }
-<COMMENT>\*             { }
-<COMMENT>\)             { }
-<COMMENT><<EOF>>        { cool_yylval.error_msg = "EOF in comment"; BEGIN(0); return (ERROR); }
-<INITIAL>{END_COMMENT}  { cool_yylval.error_msg = "Unmatched *)"; return (ERROR); }
-<COMMENT>{END_COMMENT}  { BEGIN (0); }
-{LINE_COMMENT}          { BEGIN (SINGLE_COMMENT); }
-<SINGLE_COMMENT>\n      { curr_lineno++; BEGIN (0); }
-<SINGLE_COMMENT><<EOF>> { BEGIN (0); }
+<INITIAL>{START_COMMENT}         { BEGIN(COMMENT); num_comments++; }
+<COMMENT>[^\*\)\(\n]+            { /* do nothing */ }
+<COMMENT>\*                      { }
+<COMMENT>\)                      { }
+<COMMENT>\(                      { }
+<COMMENT>{START_COMMENT}         { num_comments++; }
+<COMMENT><<EOF>>                 { cool_yylval.error_msg = "EOF in comment"; BEGIN(0); return (ERROR); }
+<INITIAL>{END_COMMENT}           { cool_yylval.error_msg = "Unmatched *)"; return (ERROR); }
+<COMMENT>{END_COMMENT}           { num_comments--; if (num_comments == 0) BEGIN (0); }
+{LINE_COMMENT}                   { BEGIN (SINGLE_COMMENT); }
+<SINGLE_COMMENT>\n               { curr_lineno++; BEGIN (0); }
+<SINGLE_COMMENT><<EOF>>          { BEGIN (0); }
 
 
 
@@ -118,7 +121,7 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
   *
   */
 <INITIAL>\"                { BEGIN(STRING); string_buf_ptr = string_buf;}
-<STRING>[^\\\"\n\0<<EOF>>]+       { memcpy(string_buf_ptr, yytext, yyleng); string_buf_ptr += yyleng; }
+<STRING>[^\\\"\n\0]+       { memcpy(string_buf_ptr, yytext, yyleng); string_buf_ptr += yyleng; }
 <STRING>{NEWLINE}          { cool_yylval.error_msg = "Unterminated string constant"; BEGIN (0); curr_lineno++; return (ERROR);}
 <STRING>\0                 { cool_yylval.error_msg = "String contains null character"; return (ERROR); }
 <STRING><<EOF>>            { cool_yylval.error_msg = "String contains EOF character"; BEGIN(0); return (ERROR); }
@@ -137,8 +140,8 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 
 
  /* Symbol identifiers */
-[A-Z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (TYPEID); }
-[a-z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (OBJECTID); }
+<INITIAL>[A-Z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (TYPEID); }
+<INITIAL>[a-z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (OBJECTID); }
 
  /* whitespace */
 [\f\r\t\v ]+          { /* ignore whitespace */ }
@@ -150,6 +153,5 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
  /* anything else is an error */
 <INITIAL>[^\.;:\+\/\*\-\(\)@~<=\{\},a-zA-Z0-9_>\s]             { cool_yylval.error_msg = yytext; return (ERROR); }
 <INITIAL>_  { cool_yylval.error_msg = "_"; return (ERROR); }
-
 
 %%

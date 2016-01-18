@@ -135,7 +135,7 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 <STRING>\"                 { BEGIN (0);  *string_buf_ptr = 0; cool_yylval.symbol = stringtable.add_string(string_buf); return (STR_CONST); }
 
  /* numbers */
-[0-9]+           { cool_yylval.symbol = inttable.add_string(yytext); return (INT_CONST); }
+<INITIAL>[0-9]+           { cool_yylval.symbol = inttable.add_string(yytext); return (INT_CONST); }
 
 
 
@@ -144,7 +144,7 @@ f(?i:alse)        { cool_yylval.boolean = false; return (BOOL_CONST); }
 <INITIAL>[a-z][a-zA-Z0-9_]*    { cool_yylval.symbol = idtable.add_string(yytext); return (OBJECTID); }
 
  /* whitespace */
-[\f\r\t\v ]+          { /* ignore whitespace */ }
+<INITIAL>[\f\r\t\v ]+          { /* ignore whitespace */ }
 {NEWLINE}             { curr_lineno++; }
 
  /* These are any other single-character lexemes that are valid. They return their ASCII code */
